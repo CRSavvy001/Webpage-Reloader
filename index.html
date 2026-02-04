@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pushover Auto-Reload</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        #timer {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.9);
+            color: #00ff00;
+            padding: 12px 18px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            font-weight: bold;
+            z-index: 999999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            border: 2px solid #00ff00;
+        }
+        
+        #timer.warning {
+            border-color: #ffff00;
+            color: #ffff00;
+        }
+        
+        #timer.danger {
+            border-color: #ff0000;
+            color: #ff0000;
+        }
+        
+        #status {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.95);
+            color: #00ff00;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            z-index: 999998;
+            max-height: 150px;
+            overflow-y: auto;
+            border-top: 2px solid #00ff00;
+        }
+        
+        .status-line {
+            margin: 3px 0;
+        }
+        
+        .status-success { color: #00ff00; }
+        .status-warning { color: #ffff00; }
+        .status-danger { color: #ff0000; }
+        .status-info { color: #00aaff; }
+        
+        #pushover-frame {
+            width: 100%;
+            height: 100vh;
+            border: none;
+        }
+        
+        .toggle-status {
+            position: fixed;
+            bottom: 160px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border: 2px solid #00ff00;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 999999;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="timer">🔄 <span id="countdown">2:00</span></div>
+    <div id="status"></div>
+    <button class="toggle-status" onclick="toggleStatus()">Hide Status</button>
+    
+    <iframe 
+        id="pushover-frame" 
+        src="https://client.pushover.net/" 
+        allow="notifications"
+        sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals allow-downloads"
+    ></iframe>
+
+    <script>
+        const RELOAD_INTERVAL = 120000; // 2 minutes in milliseconds
+        let timeLeft = 120; // seconds
+        let reloadTimer;
+        let countdownTimer;
+        
+        const timerDiv = document.getElementById('timer');
+        const countdownSpan = document.getElementById('countdown');
+        const statusDiv = document.getElementById('status');
+        const iframe = document.getElementById('pushover-frame');
+        
+        // Log to status display
+        function log(message, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const line = document.createElement('div');
+            line.className = `status-line status-${type}`;
+            line.textContent = `[${time}] ${message}`;
+            statusDiv.appendChild(line);
+            statusDiv.scrollTop = statusDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        // Toggle status panel
+        function toggleStatus() {
+            const btn = document.querySelector('.toggle-status');
+            if (statusDiv.style.display === 'none') {
+                statusDiv.style.display = 'block';
+                btn.textContent = 'Hide Status';
+            } else {
+                statusDiv.style.display = 'none';
+                btn.textContent = 'Show Status';
+            }
+        }
+        
+        // Update countdown display
+        function updateCountdown() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            countdownSpan.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Change colors based on time
+            if (timeLeft <= 10) {
+                timerDiv.className = 'danger';
+            } else if (timeLeft <= 30) {
+                timerDiv.className = 'warning';
+            } else {
+                timerDiv.className = '';
+            }
+            
+            // Log milestones
+            if (timeLeft === 60) {
+                log('⏰ 1 minute remaining', 'warning');
+            } else if (timeLeft === 30) {
+                log('⚠️ 30 seconds remaining', 'warning');
+            } else if (timeLeft === 10) {
+                log('🚨 10 SECONDS TO RELOAD!', 'danger');
+            }
+            
+            if (timeLeft > 0) {
+                timeLeft--;
+            } else {
+                countdownSpan.textContent = 'NOW!';
+            }
+        }
+        
+        // Reload the iframe
+        function reloadIframe() {
+            log('🔄 Reloading Pushover...', 'danger');
+            iframe.src = iframe.src; // Reload iframe
+            
+            // Reset timer
+            setTimeout(() => {
+                timeLeft = 120;
+                startReloadCycle();
+                log('✅ Reload complete. Next reload in 2 minutes.', 'success');
+            }, 2000);
+        }
+        
+        // Start reload cycle
+        function startReloadCycle() {
+            // Clear existing timers
+            if (reloadTimer) clearTimeout(reloadTimer);
+            if (countdownTimer) clearInterval(countdownTimer);
+            
+            // Set new reload timer
+            reloadTimer = setTimeout(reloadIframe, RELOAD_INTERVAL);
+            
+            // Start countdown
+            countdownTimer = setInterval(updateCountdown, 1000);
+            updateCountdown();
+            
+            const reloadTime = new Date(Date.now() + RELOAD_INTERVAL).toLocaleTimeString();
+            log(`⏰ Next reload at: ${reloadTime}`, 'info');
+        }
+        
+        // Initialize
+        window.addEventListener('load', () => {
+            log('✅ Pushover Auto-Reload Started', 'success');
+            log('⏰ Reload interval: 2 minutes', 'info');
+            startReloadCycle();
+        });
+        
+        // Handle iframe load
+        iframe.addEventListener('load', () => {
+            log('📱 Pushover loaded', 'success');
+        });
+        
+        // Handle page visibility (pause when tab is hidden)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                log('⏸️ Tab hidden - timers paused', 'warning');
+            } else {
+                log('▶️ Tab visible - timers resumed', 'success');
+            }
+        });
+    </script>
+</body>
+</html>
