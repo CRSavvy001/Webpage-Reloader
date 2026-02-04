@@ -1,0 +1,23 @@
+{
+  "name": "pushover-auto-reload",
+  "version": "1.0.0",
+  "description": "Auto-reload wrapper for Pushover client - works on mobile!",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "pushover",
+    "auto-reload",
+    "mobile",
+    "railway"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
